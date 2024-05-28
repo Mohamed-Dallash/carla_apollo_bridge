@@ -1,0 +1,22 @@
+import jpype
+# import jpype.imports
+
+import time
+import math
+
+class SafeDistance():
+    def __init__(self):
+        jpype.startJVM(jpype.getDefaultJVMPath(), "-Djava.class.path=tpdejavu.jar:safe_distance.jar")
+        self.monitor = jpype.JClass("TraceMonitor") 
+    
+    def send_data(self, event, world, ego_actor):
+        jpype.attachThreadToJVM()
+        my_vehicle = ego_actor
+        other_vehicle = world.get_actor(event.other_actor.id)
+        my_velocity = my_vehicle.get_velocity()
+        my_speed = 3.6 * math.sqrt(my_velocity.x**2 + my_velocity.y**2 + my_velocity.z**2)
+        other_velocity = other_vehicle.get_velocity()
+        other_speed = 3.6 * math.sqrt(other_velocity.x**2 + other_velocity.y**2 + other_velocity.z**2)
+        message = "detectLeadingVehicle,{},{},{}".format(my_speed,other_speed,event.distance)
+        print(message)
+        self.monitor.eval(message)  

@@ -15,6 +15,9 @@ RUN apt update && \
             pyyaml \
             scipy
 
+# RUN pip install pathlib
+RUN pip install jpype1==0.6.3
+
 RUN echo "source /apollo/cyber/setup.bash" >> ~/.bashrc && \
     echo "CARLA_PYTHON_ROOT=~/carla_apollo_bridge_13/carla-python-0.9.13" >> ~/.bashrc && \
     echo "PYTHONPATH=/apollo/py_proto:\$PYTHONPATH" >> ~/.bashrc && \

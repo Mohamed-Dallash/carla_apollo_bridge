@@ -146,6 +146,7 @@ try:
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
 
+from safe_distance import SafeDistance
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -283,6 +284,8 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         # Set up the sensors.
+        self.safe_distance_monitor = SafeDistance()
+        self.obstacle_sensor = ObstacleSensor(self.player,self.hud, self.world, self.safe_distance_monitor)
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
@@ -365,7 +368,8 @@ class World(object):
             self.collision_sensor.sensor,
             self.lane_invasion_sensor.sensor,
             self.gnss_sensor.sensor,
-            self.imu_sensor.sensor]
+            self.imu_sensor.sensor,
+            self.obstacle_sensor.sensor]
         for sensor in sensors:
             if sensor is not None:
                 sensor.stop()
@@ -865,6 +869,42 @@ class CollisionSensor(object):
         self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
+
+
+# ==============================================================================
+# -- ObstacleSensor -----------------------------------------------------------
+# ==============================================================================
+
+class ObstacleSensor(object):
+    def __init__(self, parent_actor, hud, world, safe_distance_monitor):
+        self.safe_distance_monitor = safe_distance_monitor
+        self.sensor = None
+        self.world=world
+        self.history = []
+        self._parent = parent_actor
+        self.hud = hud
+        world = self._parent.get_world()
+        bp = world.get_blueprint_library().find('sensor.other.obstacle')
+        bp.set_attribute("distance","1000.0")
+        bp.set_attribute("only_dynamics","True")
+        # bp.set_attribute("hit_radius","5.0")
+        bp.set_attribute("debug_linetrace","True")
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        self.counter = 0
+        # We need to pass the lambda a weak reference to self to avoid circular
+        # reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: ObstacleSensor._on_detection(weak_self,event,parent_actor))
+
+    @staticmethod
+    def _on_detection(weak_self, event, ego_actor):
+        self = weak_self()
+        if not self:
+            return
+        if event.other_actor.type_id.startswith("vehicle."):
+            print("Detected obstacle",self.counter)
+            self.counter+=1
+            self.safe_distance_monitor.send_data(event,self.world, ego_actor)
 
 
 # ==============================================================================

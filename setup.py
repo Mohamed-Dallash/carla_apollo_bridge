@@ -16,5 +16,6 @@ setuptools.setup(
         'pygame',
         'pyproj',
         'pyyaml',
+        'jpype1'
     ]
 )
