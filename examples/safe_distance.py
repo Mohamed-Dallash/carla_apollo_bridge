@@ -18,7 +18,8 @@ class SafeDistance():
         my_speed = math.sqrt(my_velocity.x**2 + my_velocity.y**2 + my_velocity.z**2) # in kph
         other_velocity = other_vehicle.get_velocity()
         other_speed = math.sqrt(other_velocity.x**2 + other_velocity.y**2 + other_velocity.z**2) # in kph
-        
-        message = "detectLeadingVehicle,{},{},{}".format(my_speed,other_speed,event.distance)
+        # subtract 2 meters (distance from center of ego vehicle to leading car)
+        distance = event.distance-2.0
+        message = "detectLeadingVehicle,{},{},{}".format(my_speed,other_speed,distance)
         print(message)
         self.monitor.eval(message)
