@@ -147,6 +147,7 @@ except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
 
 from safe_distance import SafeDistance
+from speed_limit import SpeedLimit
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -284,6 +285,7 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         # Set up the sensors.
+        self.speed_limit_monitor = SpeedLimit()
         self.safe_distance_monitor = SafeDistance()
         self.obstacle_sensor = ObstacleSensor(self.player,self.hud, self.world, self.safe_distance_monitor)
         self.collision_sensor = CollisionSensor(self.player, self.hud)
@@ -1313,6 +1315,7 @@ def game_loop(args):
             clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock, args.sync):
                 return
+            world.speed_limit_monitor.send_data(world.player)
             world.tick(clock)
             world.render(display)
             pygame.display.flip()
