@@ -148,6 +148,7 @@ except ImportError:
 
 from safe_distance import SafeDistance
 from speed_limit import SpeedLimit
+from collision_rate import CollisionRate
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -208,6 +209,7 @@ class World(object):
             print('  Make sure it exists, has the same name of your town, and is correct.')
             sys.exit(1)
         self.hud = hud
+        self.total_distance = 0.0
         self.player = None
         self.collision_sensor = None
         self.lane_invasion_sensor = None
@@ -287,8 +289,9 @@ class World(object):
         # Set up the sensors.
         self.speed_limit_monitor = SpeedLimit()
         self.safe_distance_monitor = SafeDistance()
+        self.collision_rate_monitor = CollisionRate()
         self.obstacle_sensor = ObstacleSensor(self.player,self.hud, self.world, self.safe_distance_monitor)
-        self.collision_sensor = CollisionSensor(self.player, self.hud)
+        self.collision_sensor = CollisionSensor(self.player, self.hud,self) 
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
         self.imu_sensor = IMUSensor(self.player)
@@ -840,14 +843,15 @@ class HelpText(object):
 
 
 class CollisionSensor(object):
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor, hud, world):
+        self.world = world
         self.sensor = None
         self.history = []
         self._parent = parent_actor
         self.hud = hud
-        world = self._parent.get_world()
-        bp = world.get_blueprint_library().find('sensor.other.collision')
-        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        sim_world = self._parent.get_world()
+        bp = sim_world.get_blueprint_library().find('sensor.other.collision')
+        self.sensor = sim_world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -869,6 +873,7 @@ class CollisionSensor(object):
         impulse = event.normal_impulse
         intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
         self.history.append((event.frame, intensity))
+        self.world.collision_rate_monitor.send_data(1,self.world.total_distance)
         if len(self.history) > 4000:
             self.history.pop(0)
 
@@ -1251,6 +1256,10 @@ def addLidar(world,ego_vehicle):
     #lidar_sen.listen(lambda point_cloud: point_cloud.save_to_disk('tutorial/new_lidar_output/%.6d.ply' % point_cloud.frame))
     
 
+def euclidean_distance(loc1, loc2):
+    return math.sqrt((loc1.x - loc2.x) ** 2 + (loc1.y - loc2.y) ** 2 + (loc1.z - loc2.z) ** 2)
+
+
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
@@ -1308,6 +1317,8 @@ def game_loop(args):
             sim_world.wait_for_tick()
 
         clock = pygame.time.Clock()
+
+        previous_location = world.player.get_location()
         
         while True:
             if args.sync:
@@ -1316,6 +1327,12 @@ def game_loop(args):
             if controller.parse_events(client, world, clock, args.sync):
                 return
             world.speed_limit_monitor.send_data(world.player)
+            current_location = world.player.get_location()
+            distance = euclidean_distance(previous_location,current_location)
+            world.total_distance+=distance
+            previous_location = current_location
+            world.collision_rate_monitor.send_data(0,world.total_distance)
+
             world.tick(clock)
             world.render(display)
             pygame.display.flip()
