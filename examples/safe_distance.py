@@ -9,6 +9,7 @@ class SafeDistance():
     def __init__(self):
         JVMSetup.initializeJVM()
         self.monitor = jpype.JClass("safe_distance.TraceMonitor") 
+        self.file = open("SafeDistanceResults.txt","w")
     
     def send_data(self, event, world, ego_actor):
         jpype.attachThreadToJVM()
@@ -21,5 +22,8 @@ class SafeDistance():
         # subtract 2 meters (distance from center of ego vehicle to leading car)
         distance = event.distance-2.0
         message = "detectLeadingVehicle,{},{},{}".format(my_speed,other_speed,distance)
-        print(message)
-        self.monitor.eval(message)
+        result = self.monitor.eval(message)
+        if not result:
+            print("Safe distance property violated on event {}".format(message))
+
+        self.file.write("{},{}\n".format(message,str(result)))

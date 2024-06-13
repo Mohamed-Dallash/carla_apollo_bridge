@@ -8,13 +8,8 @@ from jvm_setup import JVMSetup
 class SpeedLimit():
     def __init__(self):
         JVMSetup.initializeJVM()
-        # jpype.addClassPath('tpdejavu.jar')
-        # jpype.addClassPath('CollisionRate.jar')
-        # jpype.addClassPath('SafeDistance.jar')
-        # jpype.addClassPath('SpeedLimit.jar')
-        # jpype.startJVM(jpype.getDefaultJVMPath())
-        
-        self.monitor = jpype.JClass("speed_limit.TraceMonitor") 
+        self.monitor = jpype.JClass("speed_limit.TraceMonitor")
+        self.file = open("SpeedLimitResults.txt","w")
     
     def send_data(self, ego_actor):
         jpype.attachThreadToJVM()
@@ -23,5 +18,8 @@ class SpeedLimit():
         my_velocity = my_vehicle.get_velocity()
         my_speed = 3.6 * math.sqrt(my_velocity.x**2 + my_velocity.y**2 + my_velocity.z**2)
         message = "SpeedChanged,{},{}".format(int(my_speed),int(my_vehicle.get_speed_limit()))
-        print(message)
-        self.monitor.eval(message)  
+        result = self.monitor.eval(message)
+        if not result:
+            print("Speed limit property violated on event {}".format(message))
+
+        self.file.write("{},{}\n".format(message,str(result)))

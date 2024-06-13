@@ -8,7 +8,8 @@ from jvm_setup import JVMSetup
 class CollisionRate():
     def __init__(self):
         JVMSetup.initializeJVM()
-        self.monitor = jpype.JClass("collision_rate.TraceMonitor") 
+        self.monitor = jpype.JClass("collision_rate.TraceMonitor")
+        self.file = open("CollisionRateResults.txt","w")
     
     def send_data(self, collision_value, total_distance):
         jpype.attachThreadToJVM()
@@ -17,5 +18,9 @@ class CollisionRate():
         if not total_distance_km:
             return
         message = "collide,{},{}".format(int(collision_value),total_distance_km)
-        print(message)
-        self.monitor.eval(message)  
+        result = self.monitor.eval(message)
+        if not result:
+            print("Collision rate property violated on event {}".format(message))
+
+        self.file.write("{},{}\n".format(message,str(result)))
+

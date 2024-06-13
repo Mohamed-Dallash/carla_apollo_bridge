@@ -909,7 +909,7 @@ class ObstacleSensor(object):
         if not self:
             return
         if event.other_actor.type_id.startswith("vehicle."):
-            print("Detected obstacle",self.counter)
+            # print("Detected obstacle",self.counter)
             self.counter+=1
             self.safe_distance_monitor.send_data(event,self.world, ego_actor)
 
