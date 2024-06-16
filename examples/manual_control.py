@@ -197,7 +197,8 @@ def get_actor_blueprints(world, filter, generation):
 
 
 class World(object):
-    def __init__(self, carla_world, hud, args):
+    def __init__(self, carla_world, hud, args, client):
+        self.client = client
         self.world = carla_world
         self.sync = args.sync
         self.actor_role_name = args.rolename
@@ -281,8 +282,16 @@ class World(object):
                 print('There are no spawn points available in your map/town.')
                 print('Please add some Vehicle Spawn Point to your UE4 scene.')
                 sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            # spawn_points = self.map.get_spawn_points()
+            # spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            # spawn_point = spawn_points[0] if spawn_points else carla.Transform()
+            waypoints = self.client.get_world().get_map().generate_waypoints(distance=1.0)
+            filtered_waypoints = []
+            for waypoint in waypoints:
+                if(waypoint.road_id == 0):
+                    filtered_waypoints.append(waypoint)
+            spawn_point = filtered_waypoints[0].transform
+            spawn_point.location.z += 2
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
@@ -1307,7 +1316,7 @@ def game_loop(args):
         pygame.display.flip()
 
         hud = HUD(args.width, args.height)
-        world = World(sim_world, hud, args)
+        world = World(sim_world, hud, args, client)
         controller = KeyboardControl(world, args.autopilot)
         print("****** player id is ",world.player.id)
         
