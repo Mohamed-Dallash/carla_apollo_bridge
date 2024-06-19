@@ -211,6 +211,7 @@ class World(object):
             sys.exit(1)
         self.hud = hud
         self.total_distance = 0.0
+        self.previous_location = None
         self.player = None
         self.collision_sensor = None
         self.lane_invasion_sensor = None
@@ -313,6 +314,7 @@ class World(object):
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
 
+        self.previous_location = self.player.get_location()
         if self.sync:
             self.world.tick()
         else:
@@ -364,6 +366,12 @@ class World(object):
 
     def tick(self, clock):
         self.hud.tick(self, clock)
+        self.speed_limit_monitor.send_data(self.player)
+        current_location = self.player.get_location()
+        distance = euclidean_distance(self.previous_location,current_location)
+        self.total_distance+=distance
+        self.previous_location = current_location
+        self.collision_rate_monitor.send_data(0,self.total_distance)
 
     def render(self, display):
         self.camera_manager.render(display)
@@ -1326,8 +1334,6 @@ def game_loop(args):
             sim_world.wait_for_tick()
 
         clock = pygame.time.Clock()
-
-        previous_location = world.player.get_location()
         
         while True:
             if args.sync:
@@ -1335,12 +1341,6 @@ def game_loop(args):
             clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock, args.sync):
                 return
-            world.speed_limit_monitor.send_data(world.player)
-            current_location = world.player.get_location()
-            distance = euclidean_distance(previous_location,current_location)
-            world.total_distance+=distance
-            previous_location = current_location
-            world.collision_rate_monitor.send_data(0,world.total_distance)
 
             world.tick(clock)
             world.render(display)
