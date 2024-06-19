@@ -186,6 +186,8 @@ class World(object):
             if actor is not None:
                 actor.destroy()
 
+def euclidean_distance(loc1, loc2):
+    return math.sqrt((loc1.x - loc2.x) ** 2 + (loc1.y - loc2.y) ** 2 + (loc1.z - loc2.z) ** 2)
 
 # ==============================================================================
 # -- Game Loop ---------------------------------------------------------
@@ -233,6 +235,7 @@ def game_loop(args):
             agent = BasicAgent(world.player)
         else:
             agent = BehaviorAgent(world.player, behavior=args.behavior)
+            agent._behavior.max_speed = args.max_speed
 
         spawn_points = world.map.get_spawn_points()
         waypoints = client.get_world().get_map().generate_waypoints(distance=1.0)
@@ -246,8 +249,15 @@ def game_loop(args):
         destination = spawn_point.location
         agent.set_destination(destination)
     
+        previous_location = world.player.get_location()
+        total_distance = 0
+        ticks = 0
+        count_ticks = False
+        stopped = False
 
         while True:
+            if count_ticks:
+                ticks+=1
             if not started:
                 x = raw_input("Enter anything to start scenario: ")
                 started = True
@@ -265,7 +275,16 @@ def game_loop(args):
                     print("The target has been reached, stopping the simulation")
                     break
             if started:
+                current_location = world.player.get_location()
+                distance = euclidean_distance(previous_location,current_location)
+                total_distance+=distance
+                previous_location = current_location
                 control = agent.run_step()
+                if total_distance>=args.stop_after and not stopped:
+                    agent._behavior.max_speed = 0
+                    count_ticks = True
+                if ticks > 60:
+                    agent._behavior.max_speed = args.max_speed
                 control.manual_gear_shift = False
                 world.player.apply_control(control)
             
@@ -322,8 +341,8 @@ def main():
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
-        default='vehicle.*',
-        help='Actor filter (default: "vehicle.*")')
+        default='vehicle.lincoln.mkz_2017',
+        help='Actor filter (default: "vehicle.lincoln.mkz_2017")')
     argparser.add_argument(
         '-l', '--loop',
         action='store_true',
@@ -344,6 +363,17 @@ def main():
         help='Set seed for repeating executions (default: None)',
         default=None,
         type=int)
+    argparser.add_argument(
+        '--max-speed',
+        help='Set max speed for vehicle',
+        default=100,
+        type=int)
+    argparser.add_argument(
+        '--stop-after',
+        help='Set distance after which vehicle stops for one second and resumes course',
+        default=0,
+        type=int)
+    
 
     args = argparser.parse_args()
 
